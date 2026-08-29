@@ -13,5 +13,6 @@ namespace CodeLensOopProviderVsix
         public const uint cmdidNavigateToChangelist = 0x0100;
         public const uint cmdidShowHistory = 0x1005;
         public const uint cmdidTimeLapseView = 0x1010;
+        public const uint cmdidToggleBlame = 0x1015;
     }
 }

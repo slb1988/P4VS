@@ -128,7 +128,7 @@ namespace Perforce.P4VS
             {
                 if ((files != null) && (files.Count > 0))
                 {
-                    if (Preferences.LocalSettings.GetBool("LazyLoadStatus", false) == false)
+                    if (Preferences.LocalSettings.GetBool("LazyLoadStatus", true) == false)
                     {
                         SccService.ScmProvider.UpdateFiles(files, true);
                     }

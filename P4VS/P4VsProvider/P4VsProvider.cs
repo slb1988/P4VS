@@ -76,9 +76,9 @@ namespace Perforce.P4VS
 	// P4VsProvider
 	
 #if VS2008
-	[InstalledProductRegistration(false, "#100", "#101", "2011.1", IconResourceID=500)]
+	[InstalledProductRegistration(false, "#100", "#101", "2026.1", IconResourceID=500)]
 	[DefaultRegistryRoot("Software\\Microsoft\\VisualStudio\\9.0")]
-	[ProvideLoadKey("Standard", "2011.1", "P4VS", "Perforce Software, Inc.", 104)]
+	[ProvideLoadKey("Standard", "2026.1", "P4VS", "Perforce Software, Inc.", 104)]
 
 	//internal class Images : Perforce.P4VS.Resources2010.Images { }
 #elif VS2010

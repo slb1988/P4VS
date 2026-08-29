@@ -39,6 +39,10 @@
       <Group guid="guidCodeLensOopProviderPackageCmdSet" id="MyMenuGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/> <!-- appears in Tools menu -->
       </Group>
+      <!-- Editor right-click (code window context menu) group for the blame toggle. -->
+      <Group guid="guidCodeLensOopProviderPackageCmdSet" id="P4BlameGroup" priority="0x0B00">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
     </Groups>
 
     <!--Buttons section. -->
@@ -89,6 +93,17 @@
         </Strings>
       </Button>
 
+      <!-- Editor right-click (code window context menu) + Tools menu entry: toggle the per-file blame margin. -->
+      <Button guid="guidCodeLensOopProviderPackageCmdSet" id="cmdidToggleBlame" priority="0x0100" type="Button">
+        <Parent guid="guidCodeLensOopProviderPackageCmdSet" id="P4BlameGroup" />
+        <Parent guid="guidCodeLensOopProviderPackageCmdSet" id="MyMenuGroup" />
+        <Strings>
+          <ButtonText>Toggle P4 Blame</ButtonText>
+          <CanonicalName>Helix.ToggleBlame</CanonicalName>
+          <LocCanonicalName>Helix.ToggleBlame</LocCanonicalName>
+        </Strings>
+      </Button>
+
     </Buttons>
 
     <!--The bitmaps section is used to define the bitmaps that are used for the commands.-->
@@ -111,6 +126,8 @@
     <GuidSymbol name="guidCodeLensOopProviderPackageCmdSet" value="{f3cb9f10-281b-444f-a14e-de5de36177cd}">
       <IDSymbol name="MyMenuGroup" value="0x1020" />
       <IDSymbol name="cmdidTimeLapseView" value="0x1010" />
+      <IDSymbol name="cmdidToggleBlame" value="0x1015" />
+      <IDSymbol name="P4BlameGroup" value="0x1021" />
     </GuidSymbol>
 
     <GuidSymbol name="guidImages" value="{299f5e6d-69d5-4a54-adc4-cf4c73d5038e}" >

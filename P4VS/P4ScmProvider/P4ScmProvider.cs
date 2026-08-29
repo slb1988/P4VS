@@ -474,7 +474,7 @@ namespace Perforce.P4Scm
 			}
 			if (!Contains(path))
 			{
-                if (Preferences.LocalSettings.GetBool("LazyLoadStatus", false))
+                if (Preferences.LocalSettings.GetBool("LazyLoadStatus", true))
                 {
                     return null;
                 }
@@ -3924,7 +3924,7 @@ namespace Perforce.P4Scm
 					status = f.ScmStatus;
 				}
 				else if ((Contains(fileName) == false) &&
-					(Preferences.LocalSettings.GetBool("LazyLoadStatus", false)))
+					(Preferences.LocalSettings.GetBool("LazyLoadStatus", true)))
 				{
 					status = SourceControlStatus.scsUnknown;
 				}
@@ -3964,7 +3964,7 @@ namespace Perforce.P4Scm
 				}
 				if (f == null)
 				{
-					if (Preferences.LocalSettings.GetBool("LazyLoadStatus", false) && (Contains(fileName) == false))
+					if (Preferences.LocalSettings.GetBool("LazyLoadStatus", true) && (Contains(fileName) == false))
 					{
 						return Resources.P4ScmProvider_ToolTipLazyLoad;
 					}

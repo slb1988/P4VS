@@ -1,10 +1,15 @@
 ﻿using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.TextManager.Interop;
 using System;
+using System.ComponentModel.Design;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -34,8 +39,11 @@ namespace CodeLensOopProviderVsix
     /// </remarks>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
-    [ProvideMenuResource("Menus.ctmenu", 1)]
+    [ProvideMenuResource("Menus.ctmenu", 2)]
     [Guid(GuidAndCmdID.PackageGuidString)]
+    // UIContextGuids80.CodeWindow: load in the background as soon as a code window opens,
+    // so the "Toggle P4 Blame" editor context-menu entry is always handled.
+    [ProvideAutoLoad("8FE2DF1D-E0DA-4EBE-9D5C-415D40AD4874", PackageAutoLoadFlags.BackgroundLoad)]
     [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1650:ElementDocumentationMustBeSpelledCorrectly", Justification = "pkgdef, VS and vsixmanifest are valid VS terms")]
     [ProvideBindingPath]
     public sealed class CodeLensOopProviderPackage : AsyncPackage, IOleCommandTarget
@@ -80,6 +88,93 @@ namespace CodeLensOopProviderVsix
 
             if (cancellationToken.IsCancellationRequested)
                 return;
+
+            OleMenuCommandService commandService = await this.GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
+            if (commandService != null)
+            {
+                CommandID blameCommandId = new CommandID(GuidAndCmdID.guidCmdSet, (int)GuidAndCmdID.cmdidToggleBlame);
+                OleMenuCommand blameCommand = new OleMenuCommand(OnToggleBlameExecute, null, OnToggleBlameBeforeQueryStatus, blameCommandId);
+                commandService.AddCommand(blameCommand);
+            }
+        }
+
+        #endregion
+
+        #region Toggle P4 Blame command
+
+        private void OnToggleBlameBeforeQueryStatus(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            OleMenuCommand cmd = (OleMenuCommand)sender;
+            cmd.Checked = false;
+            cmd.Enabled = cmd.Visible = false;
+
+            IWpfTextView view = GetActiveWpfTextView();
+            if (view == null || GetFilePath(view) == null)
+                return;
+
+            cmd.Enabled = cmd.Visible = true;
+
+            Blame.BlameMargin margin;
+            if (view.Properties.TryGetProperty(typeof(Blame.BlameMargin), out margin) && margin != null)
+            {
+                cmd.Checked = margin.IsBlameVisible;
+            }
+        }
+
+        private void OnToggleBlameExecute(object sender, EventArgs e)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            IWpfTextView view = GetActiveWpfTextView();
+            if (view == null)
+                return;
+
+            Blame.BlameMargin margin;
+            if (view.Properties.TryGetProperty(typeof(Blame.BlameMargin), out margin) && margin != null)
+            {
+                margin.Toggle();
+            }
+            else
+            {
+                VsShellUtilities.ShowMessageBox(this,
+                    "Blame margin is not available for this editor. Close and re-open the file, then retry.",
+                    "P4 Blame",
+                    OLEMSGICON.OLEMSGICON_INFO,
+                    OLEMSGBUTTON.OLEMSGBUTTON_OK,
+                    OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+            }
+        }
+
+        private IWpfTextView GetActiveWpfTextView()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            IVsTextManager textManager = GetService(typeof(SVsTextManager)) as IVsTextManager;
+            if (textManager == null)
+                return null;
+
+            IVsTextView vsTextView;
+            if (textManager.GetActiveView(1, null, out vsTextView) != VSConstants.S_OK || vsTextView == null)
+                return null;
+
+            IComponentModel componentModel = GetService(typeof(SComponentModel)) as IComponentModel;
+            IVsEditorAdaptersFactoryService adapters = componentModel?.GetService<IVsEditorAdaptersFactoryService>();
+            return adapters?.GetWpfTextView(vsTextView);
+        }
+
+        private static string GetFilePath(IWpfTextView view)
+        {
+            Microsoft.VisualStudio.Text.ITextDocument doc;
+            if (view.TextBuffer.Properties.TryGetProperty(typeof(Microsoft.VisualStudio.Text.ITextDocument), out doc)
+                && doc != null
+                && !string.IsNullOrEmpty(doc.FilePath))
+            {
+                return doc.FilePath;
+            }
+
+            return null;
         }
 
         #endregion

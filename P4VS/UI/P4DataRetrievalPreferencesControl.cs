@@ -765,7 +765,7 @@ namespace Perforce.P4VS
 			AutoUpdateStatudCB.Checked = Preferences.LocalSettings.GetBool("AutoUpdateFileData", false);
 
             bool TreatProjectsAsDirs = Preferences.LocalSettings.GetBool("TreatProjectsAsFolders", true);
-            bool LazyLoad = Preferences.LocalSettings.GetBool("LazyLoadStatus", false);
+            bool LazyLoad = Preferences.LocalSettings.GetBool("LazyLoadStatus", true);
             bool PreloadCache = Preferences.LocalSettings.GetBool("PreloadScmCache", true);
             bool LLFullMenu = Preferences.LocalSettings.GetBool("LazyLoadFullMenu", false);
             bool OptimizeSolutionLoad = Preferences.LocalSettings.GetBool("OptimizeSolutionLoad", false);

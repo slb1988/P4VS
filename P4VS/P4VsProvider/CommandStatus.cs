@@ -562,7 +562,7 @@ namespace Perforce.P4VS
                 prgCmds[0].cmdf = (uint)cmdf;
                 return VSConstants.S_OK;
             }
-            bool lazyLoad = Preferences.LocalSettings.GetBool("LazyLoadStatus", false) && Preferences.LocalSettings.GetBool("LazyLoadFullMenu", false) && QueryIsLazyLoad();
+            bool lazyLoad = Preferences.LocalSettings.GetBool("LazyLoadStatus", true) && Preferences.LocalSettings.GetBool("LazyLoadFullMenu", false) && QueryIsLazyLoad();
             if (SccService.IsSolutionSelected || SccService.IsaControlledProjectSelected || lazyLoad)
             {
                 if ((prgCmds[0].cmdID == CommandId.icmdStreamGraph) ||

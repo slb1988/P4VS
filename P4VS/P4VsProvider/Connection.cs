@@ -82,7 +82,7 @@ namespace Perforce.P4VS
                     Cursor.Current = Cursors.WaitCursor;
 
                     // now refresh the selected nodes' glyphs
-                    if (Preferences.LocalSettings.GetBool("LazyLoadStatus", false) == false)
+                    if (Preferences.LocalSettings.GetBool("LazyLoadStatus", true) == false)
                     {
                         Glyphs.RefreshNodesGlyphs(null, null);
                     }
@@ -420,7 +420,7 @@ namespace Perforce.P4VS
 
         internal void CheckLazyLoadStatus()
         {
-            if (Preferences.LocalSettings.GetBool("LazyLoadStatus", false))
+            if (Preferences.LocalSettings.GetBool("LazyLoadStatus", true))
             {
                 // if lazy laoding, update status of the selected files that haven't had 
                 // their status loaded

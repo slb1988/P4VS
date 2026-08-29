@@ -1027,7 +1027,7 @@ namespace Perforce.P4VS
                 return VSConstants.S_OK;
             }
 
-            bool lazyLoading = Preferences.LocalSettings.GetBool("LazyLoadStatus", false);
+            bool lazyLoading = Preferences.LocalSettings.GetBool("LazyLoadStatus", true);
             bool RegisterSolution = lazyLoading;
             // This event is fired last by the shell when opening a solution.
             // By this time, we have already loaded the solution persistence data from the PreLoad section
@@ -1511,7 +1511,7 @@ Resources.P4VS, MessageBoxButtons.OK, MessageBoxIcon.Error);
                         isFileReadOnly = ((File.GetAttributes(rgpszMkDocumentsList[iFile]) & FileAttributes.ReadOnly) == FileAttributes.ReadOnly);
 
                         if (isFileReadOnly && ((rgfQueryEdit & (uint)tagVSQueryEditFlags.QEF_ReportOnly) == 0) &&
-                            status.TestAny(SourceControlStatusFlags.scsUncontrolled | SourceControlStatusFlags.scsUnknown) && (Preferences.LocalSettings.GetBool("LazyLoadStatus", false)))
+                            status.TestAny(SourceControlStatusFlags.scsUncontrolled | SourceControlStatusFlags.scsUnknown) && (Preferences.LocalSettings.GetBool("LazyLoadStatus", true)))
                         {
                             // we are lazy loading status file is read only but  shows as uncontrolled, 
                             //  so we likely haven't loaded the status, so do so now
@@ -1826,7 +1826,7 @@ Resources.P4VS, MessageBoxButtons.OK, MessageBoxIcon.Error);
                     {
                         isFileReadOnly = ((File.GetAttributes(rgpszMkDocuments[iFile]) & FileAttributes.ReadOnly) == FileAttributes.ReadOnly);
                         if (isFileReadOnly && status.Test(SourceControlStatusFlags.scsUncontrolled) &&
-                            (Preferences.LocalSettings.GetBool("LazyLoadStatus", false)))
+                            (Preferences.LocalSettings.GetBool("LazyLoadStatus", true)))
                         {
                             // we are lazy loading status file is read only but shows as uncontrolled, 
                             //  so we likely haven't loaded the status, so do so now
@@ -2328,7 +2328,7 @@ Resources.P4VS, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             try
             {
-                if ((Preferences.LocalSettings.GetBool("LazyLoadStatus", false)) && (ScmProvider.Contains(rgszMkOldNames[0]) == false))
+                if ((Preferences.LocalSettings.GetBool("LazyLoadStatus", true)) && (ScmProvider.Contains(rgszMkOldNames[0]) == false))
                 {
                     ScmProvider.AddFileToCache(rgszMkOldNames[0]);
                 }
