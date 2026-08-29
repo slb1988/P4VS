@@ -332,6 +332,12 @@ namespace Perforce.P4VS
 			foreach (string key in this.Keys)
 			{
 				object obj = base[key];
+				if (PreferenceDefaults.IsDefaultValue(key, obj))
+				{
+					// don't persist values equal to the built-in default;
+					// absence at load time falls back to the call-site default
+					continue;
+				}
 				SavePreference(val, ref tabLevel, XmlConvert.EncodeLocalName(key), obj);
 			}
 			EndBlock(val, ref tablevel, "SolutionSettings");

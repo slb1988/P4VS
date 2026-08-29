@@ -931,6 +931,7 @@
     <Compile Include="Preferences\ConnectionData.cs" />
     <Compile Include="Preferences\MRUList.cs" />
     <Compile Include="Preferences\Preferences.cs" />
+    <Compile Include="Preferences\PreferenceDefaults.cs" />
     <Compile Include="UI\ChooseStringDlg.cs">
       <SubType>Form</SubType>
     </Compile>
