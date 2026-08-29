@@ -766,7 +766,7 @@ namespace Perforce.P4VS
 
             bool TreatProjectsAsDirs = Preferences.LocalSettings.GetBool("TreatProjectsAsFolders", true);
             bool LazyLoad = Preferences.LocalSettings.GetBool("LazyLoadStatus", true);
-            bool PreloadCache = Preferences.LocalSettings.GetBool("PreloadScmCache", true);
+            bool PreloadCache = Preferences.LocalSettings.GetBool("PreloadScmCache", false);
             bool LLFullMenu = Preferences.LocalSettings.GetBool("LazyLoadFullMenu", false);
             bool OptimizeSolutionLoad = Preferences.LocalSettings.GetBool("OptimizeSolutionLoad", false);
 
@@ -999,7 +999,7 @@ namespace Perforce.P4VS
 
 
             TreatProjectsAsDirsCB.Checked = Preferences.LocalSettings.GetBool("TreatProjectsAsFolders", true);
-            PreloadCacheCB.Checked = Preferences.LocalSettings.GetBool("PreloadScmCache", true);
+            PreloadCacheCB.Checked = Preferences.LocalSettings.GetBool("PreloadScmCache", false);
             LLFullMenuCB.Enabled = LazyLoadRDO.Checked;
 
             AutoUpdateStatudCB.Checked = Preferences.LocalSettings.GetBool("AutoUpdateFileData", false);

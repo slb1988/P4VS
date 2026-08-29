@@ -767,7 +767,7 @@ namespace Perforce.P4VS
                 hierProject = pscp2Project as IVsHierarchy;
             }
 
-            // Early return if we couldn’t get a valid hierarchy
+            // Early return if we couldnï¿½t get a valid hierarchy
             if (hierProject == null)
             {
                 logger.Warn("UnregisterSccProject called with null hierarchy.");
@@ -1164,7 +1164,11 @@ namespace Perforce.P4VS
                         string newChangeDescription = null;
                         if (!_P4VsProvider.InCommandLineMode())
                         {
-                            IList<P4.Changelist> changes = ScmProvider.GetAvailibleChangelists(-1);
+                            IList<P4.Changelist> changes = null;
+                            using (TimingLog.Scope("OnAfterOpenSolution.GetAvailibleChangelists(-1)"))
+                            {
+                                changes = ScmProvider.GetAvailibleChangelists(-1);
+                            }
 
                             changeListId = -1;
                             string prompt = Resources.P4VsProviderService_RegisterSlnFileQuestion;

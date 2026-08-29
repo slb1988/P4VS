@@ -109,13 +109,22 @@ namespace Perforce.P4Scm
                 try
                 {
                     // Get configuration
-                    getConfiguration(path);
+                    using (TimingLog.Scope("initConnection.getConfiguration"))
+                    {
+                        getConfiguration(path);
+                    }
 
                     // Create repository from server connection
-                    Repository = RepositoryFactory.get(Port, User, Workspace);
+                    using (TimingLog.Scope("initConnection.RepositoryFactory.get(connect+metadata)"))
+                    {
+                        Repository = RepositoryFactory.get(Port, User, Workspace);
+                    }
 
                     // set Swarm here since Login will check Swarm availability
-                    Swarm = new Swarm(Repository, User);
+                    using (TimingLog.Scope("initConnection.Swarm#1"))
+                    {
+                        Swarm = new Swarm(Repository, User);
+                    }
                     if (string.IsNullOrEmpty(Workspace)&& !clientNotRequired)
                     {
                         DialogResult res = P4ErrorDlg.Show(Resources.P4ScmProvider_WorkspaceEnvUnset,
@@ -135,13 +144,21 @@ namespace Perforce.P4Scm
                     setConfiguration();
 
                     // Check API level of server is greater than 28 (2009.2)
-                    checkApiLevel(28);
+                    using (TimingLog.Scope("initConnection.checkApiLevel"))
+                    {
+                        checkApiLevel(28);
+                    }
 
                     // set Swarm here since Login will check Swarm availability
-                    Swarm = new Swarm(Repository, User);
+                    using (TimingLog.Scope("initConnection.Swarm#2"))
+                    {
+                        Swarm = new Swarm(Repository, User);
+                    }
 
                     // Login if required
-                    if (!string.IsNullOrEmpty(User) && !isLoggedIn())
+                    using (TimingLog.Scope("initConnection.isLoggedIn+Login"))
+                    {
+                        if (!string.IsNullOrEmpty(User) && !isLoggedIn())
                     {
                         if (!ssoSuccess)
                         { break; }
@@ -160,18 +177,22 @@ namespace Perforce.P4Scm
                             continue;
                         }
                     }
+                    }
 
                     // Exit if no client defined
-                    if (!string.IsNullOrEmpty(User) && !string.IsNullOrEmpty(Workspace))
+                    using (TimingLog.Scope("initConnection.setWorkspace+saveRecent"))
                     {
-                        setWorkspace();
+                        if (!string.IsNullOrEmpty(User) && !string.IsNullOrEmpty(Workspace))
+                        {
+                            setWorkspace();
 
-                        // Save Connection as User and Workspace are good
-                        saveRecentConnection();
-                    }
-                    else
-                    {
-                        logger.Warn("Workspace not initialised.");
+                            // Save Connection as User and Workspace are good
+                            saveRecentConnection();
+                        }
+                        else
+                        {
+                            logger.Warn("Workspace not initialised.");
+                        }
                     }
 
                     if (Repository.Connection.Server.Metadata.UnicodeEnabled)

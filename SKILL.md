@@ -13,7 +13,7 @@ tags: [P4VS, Visual-Studio-Extension, VSIX, Perforce, Blame]
 ## 本 fork 与上游的差异
 
 1. **P4 Blame 编辑器边距**（自研）：`CodeLensVisx/Blame/`，右键 Toggle P4 Blame。细节见 references/p4-blame-feature.md
-2. **`LazyLoadStatus` 默认 true**：官方源码默认值不统一（`P4VsProviderService` 三处默认 true、其余 false），本 fork 全部 `GetBool("LazyLoadStatus", ...)` 读取点统一为 true——Solution Explorer 的 Scc 图标状态改为懒加载，大解决方案启动期不再做目录级 fstat 扫描。设置页复选框默认同步为勾。见 references/startup-performance.md
+2. **`LazyLoadStatus` 默认 true + `PreloadScmCache` 默认 false**：官方源码默认值不统一（`P4VsProviderService` 三处默认 true、其余 false），本 fork 全部 `GetBool("LazyLoadStatus", ...)` 读取点统一为 true——Solution Explorer 的 Scc 图标状态改为懒加载。`PreloadScmCache` 六处读取点统一翻 false——**这是「点确定连接后卡死 73~95s」的真凶**（SolutionPath setter 对整个解决方案目录树做递归 fstat），翻 false 后连接全程 ~100ms。注意 P4VS 偏好落盘在 `%APPDATA%\Perforce\P4VS\VS2022\LocalSettings.ini`，**已存储值压过源码默认值**，两处 ini 也已同步改。见 references/startup-performance.md
 3. `Microsoft.Deployment.WindowsInstaller` 引用补 HintPath 到 `libs\Release\`（官方依赖构建机 GAC）
 4. 版本号体系统一 2026.1.0.0（高于官方 2025.1.282.7872 才能覆盖安装）
 

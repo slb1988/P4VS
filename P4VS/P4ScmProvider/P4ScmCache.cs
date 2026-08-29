@@ -585,7 +585,7 @@ namespace Perforce.P4Scm
 		{
 			lock (cache)
 			{
-				if (Preferences.LocalSettings.GetBool("PreloadScmCache", true))
+				if (Preferences.LocalSettings.GetBool("PreloadScmCache", false))
 				{
 					AddDirectoryFilesToCache(localHeadPath, true);
 				}

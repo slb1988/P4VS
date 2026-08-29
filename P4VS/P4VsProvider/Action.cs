@@ -1225,7 +1225,7 @@ namespace Perforce.P4VS
             prefs += "AutoUpdateFileData: " + Preferences.LocalSettings.GetBool("AutoUpdateFileData", false).ToString() + "\n";
 
             prefs += "TreatProjectsAsFolders: " + Preferences.LocalSettings.GetBool("TreatProjectsAsFolders", true).ToString() + "\n";
-            prefs += "PreloadScmCache: " + Preferences.LocalSettings.GetBool("PreloadScmCache", true).ToString() + "\n";
+            prefs += "PreloadScmCache: " + Preferences.LocalSettings.GetBool("PreloadScmCache", false).ToString() + "\n";
             prefs += "LazyLoadStatus: " + Preferences.LocalSettings.GetBool("LazyLoadStatus", true).ToString() + "\n";
             prefs += "LazyLoadFullMenu: " + Preferences.LocalSettings.GetBool("LazyLoadFullMenu", false).ToString() + "\n";
 

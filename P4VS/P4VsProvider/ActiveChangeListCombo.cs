@@ -30,12 +30,16 @@ namespace Perforce.P4VS
 
         private void InitActiveChangeListComboChoicesMap()
         {
+            TimingLog.Mark("ActiveChangeListCombo.Init BEGIN");
             bool promptPreferenceSet = Preferences.LocalSettings.GetBool("PromptForChanglist", true);
             int ListSize = 3;
             IList<P4.Changelist> changes = null;
             if ((SccService != null) && (SccService.ScmProvider != null))
             {
-                changes = SccService.ScmProvider.GetAvailibleChangelists(10);
+                using (TimingLog.Scope("ActiveChangeListCombo.GetAvailibleChangelists(10)"))
+                {
+                    changes = SccService.ScmProvider.GetAvailibleChangelists(10);
+                }
             }
             if (changes != null)
             {

@@ -16,6 +16,24 @@
 
 ## 插件的两个 P4 网络往返源（ recurring ）
 
+### 0. 【真凶】SolutionPath setter 的全量预载（2026-08-29 计时日志确诊）
+
+**「点确定连接 P4 后卡死 73~95 秒」的根因不是连接慢**（连接全程 ~100ms：getConfiguration 8ms + RepositoryFactory.get 61ms + Swarm 0ms + Login 1ms + setWorkspace 5ms），而是连接后 `P4ScmProvider.SolutionPath` setter 里的预载：
+
+```csharp
+// P4ScmProvider.cs SolutionPath setter
+if (GetBool("PreloadScmCache", true))   // 官方默认 true！
+    AddDirectoryFilesToCache(_solutionPath, recursive: true);  // 递归 fstat 整个解决方案目录树
+```
+
+`D:\MainDev\Main` 全树递归 fstat = UI 线程阻塞 73~95s（计时日志实锤）。**本 fork 已把 `PreloadScmCache` 默认翻成 false**（6 处读取点）；false 时走 `AddFileToCache(SolutionFile)` 只缓存 sln 文件，20ms。
+
+### 0.1 P4VS 偏好设置的持久化与优先级（关键机制）
+
+- 存储位置：`%APPDATA%\Perforce\P4VS\<VS版本>\LocalSettings.ini`（旧版无版本子目录的同名文件只做一次性迁移读取）
+- **已存储的值永远压过源码默认值**——`GetBool(key, default)` 的 default 只在 key 不存在时生效。选项页每次 OK 会把所有偏好落盘，所以老用户几乎都有存储值，**改源码默认值对他们无效**；要同时改 ini（P4VS 关闭时改，否则退出时可能被覆写）。本机 ini 已改：`LazyLoadStatus=True`、`PreloadScmCache=False`
+- 计时日志：fork 内置 `Perforce.P4VS.TimingLog`（`P4VS/Framework/TimingLog.cs`），无条件写 `C:\Windows\Temp\p4vs_timing.txt`（`P4VS_TIMING=0` 可关），连接/缓存/CL 查询关键路径都有 Scope 标记
+
 ### 1. 主包文件状态缓存（P4ScmProvider）
 
 - Solution Explorer 的 Scc 图标触发 `GetFileStatus(file)` → `Fetch(file)`

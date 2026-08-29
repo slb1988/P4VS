@@ -107,7 +107,7 @@ namespace Perforce.P4Scm
 				{
 					SolutionPath = Path.GetDirectoryName(_solutionFile);
 				}
-                if ((Preferences.LocalSettings.GetBool("PreloadScmCache", true)==false) && 
+                if ((Preferences.LocalSettings.GetBool("PreloadScmCache", false)==false) && 
                     (Connection.Repository != null) && (Connection.Repository.Connection != null))
                 {
                     // only add if not already loaded by setting the SolutionPath
@@ -123,7 +123,7 @@ namespace Perforce.P4Scm
 			set 
 			{ 
 				_solutionPath = value;
-                if (Preferences.LocalSettings.GetBool("PreloadScmCache", true) && (Connection.Repository != null) && (Connection.Repository.Connection != null))
+                if (Preferences.LocalSettings.GetBool("PreloadScmCache", false) && (Connection.Repository != null) && (Connection.Repository.Connection != null))
 				{
                     Connection.Repository.Connection.CurrentWorkingDirectory = _solutionPath;
 
@@ -599,7 +599,10 @@ namespace Perforce.P4Scm
 
 			try
 			{
-				FileCache.AddDirectoryFilesToCache(directoryPath, recursive);
+				using (TimingLog.Scope("AddDirectoryFilesToCache " + directoryPath + (recursive ? " (recursive)" : "")))
+				{
+					FileCache.AddDirectoryFilesToCache(directoryPath, recursive);
+				}
 			}
 			catch (Exception ex)
 			{

@@ -39,8 +39,12 @@ namespace Perforce.P4VS
 #endif
             bool noUi = InCommandLineMode() || (Port != null) && (User != null) && (Workspace != null);
 
+            TimingLog.Mark("Connect: user clicked OK, calling scm.Connection.Connect");
             // trigger the connection dialog
-            scm.Connection.Connect(Port, User, Workspace, noUi, null);
+            using (TimingLog.Scope("scm.Connection.Connect"))
+            {
+                scm.Connection.Connect(Port, User, Workspace, noUi, null);
+            }
             if (scm.Connected)
             {
 #if DB_DEBUG
@@ -54,7 +58,10 @@ namespace Perforce.P4VS
                 }
                 SccService.ScmProvider = scm;
 
-                createActiveChangelists(SccService);
+                using (TimingLog.Scope("createActiveChangelists"))
+                {
+                    createActiveChangelists(SccService);
+                }
 
                 if (string.IsNullOrEmpty(SccService.ScmProvider.SolutionFile))
                 {
@@ -73,10 +80,15 @@ namespace Perforce.P4VS
 
                     if (!SccService.IsProjectControlled(null))
                     {
-                        SccService.OnAfterOpenSolution(null, 0);
+                        using (TimingLog.Scope("SccService.OnAfterOpenSolution(from connect)"))
+                        {
+                            SccService.OnAfterOpenSolution(null, 0);
+                        }
                     }
                 }
-                Cursor oldCursor = Cursor.Current;
+                using (TimingLog.Scope("Connect.PostConnect: glyphs+MRU+broadcast"))
+                {
+                    Cursor oldCursor = Cursor.Current;
                 try
                 {
                     Cursor.Current = Cursors.WaitCursor;
@@ -98,6 +110,9 @@ namespace Perforce.P4VS
                 currentConnectionDropDownComboChoice = recentConnections[0].ToString();
 
                 SuppressConnection = true;
+                }
+
+                TimingLog.Mark("Connect: OK flow complete");
                 LastConnectionInfo = new ConnectionData();
                 LastConnectionInfo.ServerPort = SccService.ScmProvider.Connection.Port;
                 LastConnectionInfo.UserName = SccService.ScmProvider.Connection.User;

@@ -518,6 +518,7 @@
     </Compile>
     <Compile Include="CustomControls\TreeListViewItem.cs" />
     <Compile Include="Framework\FileLogger.cs" />
+    <Compile Include="Framework\TimingLog.cs" />
     <Compile Include="Framework\ListViewColumnSorter.cs" />
     <Compile Include="Framework\P4ToolWindowControlBase.cs">
       <SubType>UserControl</SubType>
