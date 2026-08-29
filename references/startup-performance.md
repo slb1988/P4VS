@@ -32,6 +32,7 @@ if (GetBool("PreloadScmCache", true))   // 官方默认 true！
 
 - 存储位置：`%APPDATA%\Perforce\P4VS\<VS版本>\LocalSettings.ini`（旧版无版本子目录的同名文件只做一次性迁移读取）
 - **已存储的值永远压过源码默认值**——`GetBool(key, default)` 的 default 只在 key 不存在时生效。选项页每次 OK 会把所有偏好落盘，所以老用户几乎都有存储值，**改源码默认值对他们无效**；要同时改 ini（P4VS 关闭时改，否则退出时可能被覆写）。本机 ini 已改：`LazyLoadStatus=True`、`PreloadScmCache=False`
+- **本 fork 已修复此模型（2026-08-29）**：新增 `PreferenceDefaults` 规范默认值注册表，`PreferenceCache.Save()` 序列化时跳过「值 == 规范默认」的条目——**ini 只存真正的用户覆盖项，缺失回退默认值**（`GetBool/GetInt(key, default)` 天然支持）。效果：以后源码默认值改进能惠及所有没显式改过的用户；ini 在下次任意写盘时自清（单元验证过 `PreferenceCache.Save()` 输出）
 - 计时日志：fork 内置 `Perforce.P4VS.TimingLog`（`P4VS/Framework/TimingLog.cs`），无条件写 `C:\Windows\Temp\p4vs_timing.txt`（`P4VS_TIMING=0` 可关），连接/缓存/CL 查询关键路径都有 Scope 标记
 
 ### 1. 主包文件状态缓存（P4ScmProvider）

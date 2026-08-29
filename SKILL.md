@@ -16,6 +16,8 @@ tags: [P4VS, Visual-Studio-Extension, VSIX, Perforce, Blame]
 2. **`LazyLoadStatus` 默认 true + `PreloadScmCache` 默认 false**：官方源码默认值不统一（`P4VsProviderService` 三处默认 true、其余 false），本 fork 全部 `GetBool("LazyLoadStatus", ...)` 读取点统一为 true——Solution Explorer 的 Scc 图标状态改为懒加载。`PreloadScmCache` 六处读取点统一翻 false——**这是「点确定连接后卡死 73~95s」的真凶**（SolutionPath setter 对整个解决方案目录树做递归 fstat），翻 false 后连接全程 ~100ms。注意 P4VS 偏好落盘在 `%APPDATA%\Perforce\P4VS\VS2022\LocalSettings.ini`，**已存储值压过源码默认值**，两处 ini 也已同步改。见 references/startup-performance.md
 3. `Microsoft.Deployment.WindowsInstaller` 引用补 HintPath 到 `libs\Release\`（官方依赖构建机 GAC）
 4. 版本号体系统一 2026.1.0.0（高于官方 2025.1.282.7872 才能覆盖安装）
+5. **偏好不落盘默认值**：`PreferenceDefaults` 注册表 + `PreferenceCache.Save()` 过滤——ini 只存用户真实覆盖项，默认改进不再被历史落盘值锁死（官方毛病：选项页每次 OK 全量落盘）
+6. 内置 `TimingLog` 关键路径计时（连接/缓存/CL 查询）写 `C:\Windows\Temp\p4vs_timing.txt`
 
 ## 仓库结构
 
