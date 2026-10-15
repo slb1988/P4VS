@@ -1,4 +1,7 @@
-﻿using EnvDTE;
+﻿extern alias EnvDteX;
+extern alias VsCmdBars;
+
+using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.ComponentModelHost;
@@ -39,7 +42,7 @@ namespace CodeLensOopProviderVsix
     /// </remarks>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
-    [ProvideMenuResource("Menus.ctmenu", 2)]
+    [ProvideMenuResource("Menus.ctmenu", 4)]
     [Guid(GuidAndCmdID.PackageGuidString)]
     // UIContextGuids80.CodeWindow: load in the background as soon as a code window opens,
     // so the "Toggle P4 Blame" editor context-menu entry is always handled.
@@ -96,6 +99,103 @@ namespace CodeLensOopProviderVsix
                 OleMenuCommand blameCommand = new OleMenuCommand(OnToggleBlameExecute, null, OnToggleBlameBeforeQueryStatus, blameCommandId);
                 commandService.AddCommand(blameCommand);
             }
+
+            Instance = this;
+            EnsureJsonContextMenuBlameButton("load");
+        }
+
+        #endregion
+
+        #region JSON editor context menu injection
+
+        // VSCT group->menu merge into the WebTools JSON editor context menu ({F718CA06-CF4F-4A0C-9106-E79E9EE5E7CD}:1)
+        // does NOT work (2026-10-15 verified: merge never materializes, item invisible no matter what).
+        // .uproject/.uplugin/.json all open in that editor (its factory claims "*" as fallback), and its
+        // right-click menu is not IDM_VS_CTXT_CODEWIN, so without this the command is unreachable there.
+        // Copilot/Git entries get in dynamically; we do the same: Command.AddControl onto the "JSON Context"
+        // command bar (bar name is locale-invariant). Purely add-if-missing: deleting/re-adding controls
+        // while the bar is still populating corrupts its state (2026-10-15, v2026.1.5.0 regression).
+        // Position is NOT enforced (user decision) - a load-time add can land at the top.
+        // Triggers: package load, our own QueryStatus, and BlameMarginProvider.CreateMargin (fires exactly
+        // when a JSON-ish editor opens, which is the chicken-and-egg case: our QueryStatus alone never
+        // runs from a menu that doesn't contain our command yet).
+        private bool jsonMenuEnsured;
+
+        internal static CodeLensOopProviderPackage Instance { get; private set; }
+
+        private static void BlameMenuLog(string message)
+        {
+            try
+            {
+                System.IO.File.AppendAllText(@"C:\Windows\Temp\p4vs_blame_menu.log",
+                    DateTime.Now.ToString("HH:mm:ss.fff") + " " + message + Environment.NewLine);
+            }
+            catch (Exception) { }
+        }
+
+        internal void EnsureJsonContextMenuBlameButton(string trigger)
+        {
+            if (jsonMenuEnsured)
+                return;
+            if (!ThreadHelper.CheckAccess())
+            {
+                BlameMenuLog(trigger + ": skip (not UI thread)");
+                return; // retried on a later trigger
+            }
+
+            EnvDteX::EnvDTE.DTE dte = GetService(typeof(SDTE)) as EnvDteX::EnvDTE.DTE;
+            if (dte == null)
+            {
+                BlameMenuLog(trigger + ": DTE null");
+                return;
+            }
+
+            try
+            {
+                VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBars bars =
+                    dte.CommandBars as VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBars;
+                if (bars == null)
+                {
+                    BlameMenuLog(trigger + ": CommandBars null");
+                    return;
+                }
+
+                VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBar bar = bars["JSON Context"]; // throws if JSON editor package not ready yet; retried lazily
+                if (bar == null)
+                {
+                    BlameMenuLog(trigger + ": bar null");
+                    return;
+                }
+
+                foreach (VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBarControl ctl in bar.Controls)
+                {
+                    string caption = null;
+                    try { caption = ctl.Caption; } catch (Exception) { }
+                    if (caption == "Toggle P4 Blame")
+                    {
+                        jsonMenuEnsured = true;
+                        BlameMenuLog(trigger + ": already present (idx>0), count=" + bar.Controls.Count);
+                        return;
+                    }
+                }
+
+                EnvDteX::EnvDTE.Command cmd = dte.Commands.Item("{" + GuidAndCmdID.PackageCmdSetGuidString + "}", (int)GuidAndCmdID.cmdidToggleBlame);
+                if (cmd == null)
+                {
+                    BlameMenuLog(trigger + ": command not in table");
+                    return;
+                }
+
+                int position = bar.Controls.Count + 1;
+                cmd.AddControl(bar, position);
+                jsonMenuEnsured = true;
+                BlameMenuLog(trigger + ": added at " + position + ", count now " + bar.Controls.Count);
+            }
+            catch (Exception ex)
+            {
+                // JSON editor package not ready / menu store locked / VS shutting down - retried on next trigger
+                BlameMenuLog(trigger + ": EX " + ex.GetType().Name + " " + ex.Message);
+            }
         }
 
         #endregion
@@ -105,6 +205,8 @@ namespace CodeLensOopProviderVsix
         private void OnToggleBlameBeforeQueryStatus(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+
+            EnsureJsonContextMenuBlameButton("querystatus");
 
             OleMenuCommand cmd = (OleMenuCommand)sender;
             cmd.Checked = false;

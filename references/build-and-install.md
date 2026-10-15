@@ -23,15 +23,15 @@ cd /d/Github/P4VS
 
 ## 安装
 
-`C:\Windows\Temp\install_p4vs.bat` 内容（已存在，可直接复用）：
+脚本已入库（仓库根目录，勿再用 %TEMP%——会被系统清理）：
 
-```bat
-@echo off
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\VSIXInstaller.exe" /q /logFile:p4vs_install.log "D:\Github\P4VS\bin\Release\P4VS.vsix"
-echo VSIX_EXIT=%ERRORLEVEL%
-```
+| 脚本 | 用途 |
+|---|---|
+| `install_p4vs.bat` | 装主实例：`VSIXInstaller /q /logFile:p4vs_install.log D:\Github\P4VS\bin\Release\P4VS.vsix`，输出 `VSIX_EXIT=0` 即成功 |
+| `install_p4vs_exp.bat` | 装 Exp 沙箱（`/rootSuffix:Exp`，不污染主实例，无需关主 VS） |
+| `uninstall_p4vs.bat` | 按 Identity Id 卸载，默认总包 Id，可传参卸残留组件（如独立 CodeLens Id） |
 
-调用必须走 `cmd.exe //c "C:\Windows\Temp\install_p4vs.bat"`——直接在 bash 里调 VSIXInstaller 会被 MSYS 参数转换坑（见 exit 209）。
+调用必须走 `cmd.exe //c "D:\Github\P4VS\install_p4vs.bat"`——直接在 bash 里调 VSIXInstaller 会被 MSYS 参数转换坑（见 exit 209）。
 
 **安装前必须关闭所有 devenv.exe**：先 `taskkill //PID <pid>`（温和，让它弹保存提示），6-10 秒不退再 `taskkill //F //PID <pid>`。
 
@@ -59,13 +59,15 @@ echo VSIX_EXIT=%ERRORLEVEL%
 4. **`devenv /log <文件路径>` 的 `/log` 会吃掉后面的文件参数当日志输出路径**——会把 ActivityLog XML 写进并覆盖那个源文件！启动 VS 调试时永远不要把 /log 和文档路径放同一命令行；要指定日志用 `/log <独立日志路径>`，要打开文件就分两行/省略 /log。（2026-08-28 踩过，BlameMargin.cs 被 339KB ActivityLog 覆盖）
 5. **ActivityLog 注意**：`devenv /log` 写的 `%APPDATA%\Microsoft\VisualStudio\17.0_*\ActivityLog.xml` 在本机实测不更新（一直是旧文件），别依赖它排查；用 DTE ROT 探针（`!VisualStudio.DTE.17.0:<pid>`）代替。
 5. **VS 命令注册验证不靠猜**：包未加载时该包的菜单项整体隐藏；`[ProvideAutoLoad(CodeWindow, BackgroundLoad)]` 的包在打开第一个代码窗口后几秒才加载，立刻右键可能还没有。
+6. **Extensions 目录下同一组件两个 Identity Id 并存 = 隐形覆盖**：2026-10-15 发现 `Extensions\` 里残留 2026-08-31 调试期装的**独立** CodeLensOopProvider vsix（Id `CodeLensOopProviderVsixx64.a6d0c985-...`，与总包 `P4VsProviderx64.Perforce.6C2C3283-...` 不同 Id，升级不会被清掉）——同一包 guid 两个提供者，VS 可能加载旧 dll 导致新功能静默不生效。排查：`grep -o 'Id="[^"]*"' Extensions/*/extension.vsixmanifest` 查重；清法：`VSIXInstaller /q /u:<IdentityId>`（VS 需关闭）。
 
 ## 升级机制
 
 - 同 Identity Id（`P4VsProviderx64.Perforce.6C2C3283-...`）且版本更高 = 升级：VS 删旧随机目录 `Extensions\<random1>\`、装到新随机目录 `<random2>\`，日志里大量 "Deleting file" 是正常升级过程
-- 已装的官方发布版是 `2025.1.282.7872`，所以本仓库必须 > 它，当前统一 **2026.1.0.0**
+- 已装的官方发布版是 `2025.1.282.7872`，所以本仓库必须 > 它
+- **每次修改源码必须递增一次小版本号**（当前 **2026.1.4.0**）。**同版本号覆盖安装是陷阱**（2026-08-31 实测）：VSIXInstaller 返回 exit 0 看似成功，但 `Extensions\` 下会残留新旧两份随机目录，VS 可能加载旧 DLL——功能不生效且无报错。修复流程：`VSIXInstaller /u:<IdentityId>` 卸载 → 手动删掉残留的含目标 dll 的旧目录 → 抬版本号重装。验证安装结果：检查 `Extensions\<新目录>\extension.vsixmanifest` 的 Version 和 dll 时间戳/内容字节（.NET dll 里字符串是 UTF-16LE，搜字节模式别用 grep 文本）。
 
-## 版本号统一清单（2026-08 全仓统一过一次）
+## 版本号统一清单（2026-10-15 升到 2026.1.4.0；每次改源码递增）
 
 **要改（展示层）：**
 - 4 个 `source.extension.vsixmanifest` 的 Identity Version：`HelixVS/`（总包，扩展管理器显示的就是它）、`P4VS/`、`P4VS_StartPage/`、`CodeLensVisx/`

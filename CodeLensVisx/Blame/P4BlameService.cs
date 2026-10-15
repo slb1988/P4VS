@@ -3,6 +3,7 @@ using Perforce.P4Scm;
 using Perforce.P4VS;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 namespace CodeLensOopProviderVsix.Blame
 {
@@ -44,8 +45,12 @@ namespace CodeLensOopProviderVsix.Blame
 
             // Changelist id -> metadata (user / date / description). p4 annotate's tagged
             // output carries no user/date, so build a lookup from the file's history.
+            // -l: full descriptions. The default output truncates to the first 31 chars,
+            // which would cut "#auto-merge ... by <user>" before the name and break the
+            // auto-merge author extraction below.
             Options clOpts = new Options();
             clOpts["-m"] = "2000";
+            clOpts["-l"] = null;
             IList<Changelist> changelists = rep.GetChangelists(
                 clOpts, new FileSpec(new LocalPath(filePath), null));
 
@@ -72,9 +77,9 @@ namespace CodeLensOopProviderVsix.Blame
                     Changelist cl;
                     if (info.ChangeNumber > 0 && byId.TryGetValue(info.ChangeNumber, out cl))
                     {
-                        info.User = cl.OwnerName ?? string.Empty;
-                        info.Date = cl.ModifiedDate;
                         info.Description = cl.Description ?? string.Empty;
+                        info.User = ExtractDisplayUser(cl.OwnerName, info.Description);
+                        info.Date = cl.ModifiedDate;
                     }
 
                     result.Add(info);
@@ -82,6 +87,50 @@ namespace CodeLensOopProviderVsix.Blame
             }
 
             return result;
+        }
+
+        private const string AutoMergeMarker = "#auto-merge";
+
+        // Only applied to the line containing AutoMergeMarker (cheap IndexOf gate first).
+        // Captures the user name after "by " at end of that line, e.g.:
+        //   "#auto-merge:manual Rel-0.2->MainDev CL:117018 by ShenShuo"  -> ShenShuo
+        //   "#auto-merge: Rel-0.2->MainDev CL:117069 by SuJiawei"        -> SuJiawei
+        private static readonly Regex AutoMergeUserRegex = new Regex(
+            @"\bby\s+(?<user>[A-Za-z0-9_.\-]+)\s*$",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static string ExtractDisplayUser(string ownerName, string description)
+        {
+            if (string.IsNullOrEmpty(description))
+            {
+                return ownerName ?? string.Empty;
+            }
+
+            // Step 1: cheap marker search; most CLs return here without regex.
+            int markerIndex = description.IndexOf(AutoMergeMarker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex < 0)
+            {
+                return ownerName ?? string.Empty;
+            }
+
+            // Step 2: isolate the marker's own line (the description may carry extra
+            // lines below it), then extract "by <user>" at that line's end.
+            int lineStart = description.LastIndexOf('\n', markerIndex) + 1;
+            int lineEnd = description.IndexOf('\n', markerIndex);
+            if (lineEnd < 0)
+            {
+                lineEnd = description.Length;
+            }
+
+            string markerLine = description.Substring(lineStart, lineEnd - lineStart);
+
+            Match m = AutoMergeUserRegex.Match(markerLine);
+            if (m.Success)
+            {
+                return m.Groups["user"].Value;
+            }
+
+            return ownerName ?? string.Empty;
         }
 
         private static int ExtractChangeNumber(FileAnnotation a)

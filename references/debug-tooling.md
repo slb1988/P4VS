@@ -18,6 +18,8 @@ VS 实例在 ROT 注册 `!VisualStudio.DTE.17.0:<pid>`。枚举 ROT 拿 DTE 后�
 - `dte.Commands.Item("{cmdset-guid}", cmdid)` → 命令是否在命令表；`.IsAvailable` 触发真实 QueryStatus（含自定义 BeforeQueryStatus 逻辑）——**能区分"命令没注册"和"注册了但菜单没合并"**
 - `dte.ExecuteCommand("EditorContextMenus.CodeWindow.Helix.ToggleBlame")` — 直接执行命令（2022 里菜单贡献的命令带放置路径前缀），不抢焦点
 - `dte.Documents.Open(path)` / `dte.ActiveDocument` — 远程激活文档
+- `dte.ActiveDocument.Language` — 判文件实际编辑器（C/C++、Plain Text、JSON），比猜扩展名准
+- **CommandBars facade**（`dte.CommandBars`，VS2022 仍可用）：枚举 `bars["JSON Context"]` 等的 Controls 看菜单**静态合并结构**（不跑 QueryStatus，拿工具窗口激活做对照可区分「没合并」和「被隐藏」）；bar 名不本地化；`cmd.AddControl(bar, pos)` 可动态注入菜单项（pos=Controls.Count+1 放底部）——VSCT 合并不生效时的兜底手段
 
 探针模板在本机 `%TEMP%\vsprobe*.cs/.exe`（csc 编译需引用 `EnvDTE.dll` + `Microsoft.VisualStudio.Interop.dll`，且两个 dll 要拷到 exe 旁——17.x 里 DTE 类型转发到后者，少了会 JIT 期崩）。
 
