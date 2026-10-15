@@ -11,7 +11,7 @@
 | `CodeLensVisx/Blame/BlameMarginProvider.cs` | MEF `IWpfTextViewMarginProvider`；margin 实例塞进 `view.Properties[typeof(BlameMargin)]` 供命令查找 |
 | `CodeLensVisx/CodeLensOopProviderPackage.cs` | 命令注册与处理：`OnToggleBlameExecute` / `OnToggleBlameBeforeQueryStatus` / `GetActiveWpfTextView` |
 | `CodeLensVisx/CodeLensOopProviderPackage.vsct` | `cmdidToggleBlame = 0x1015`，经 `P4BlameGroup`(0x1021) 中转挂 `IDM_VS_CTXT_CODEWIN`（直挂不合并！），同时挂 `MyMenuGroup` 进 Tools 菜单。**JSON 编辑器菜单不在此挂**（合并无效，见下节） |
-| `CodeLensVisx/CodeLensOopProviderPackage.cs` | 命令注册与处理 + **运行时注入 JSON Context 菜单**（`EnsureJsonContextMenuBlameButton`，见下节）；DTE/CommandBars 类型在 EnvDTE 与 Interop 17.x 重名（CS0433），必须走 `dynamic` IDispatch |
+| `CodeLensVisx/CodeLensOopProviderPackage.cs` | 命令注册与处理 + **运行时注入 JSON Context 菜单**（`EnsureJsonContextMenuBlameButton`，见下节）；DTE/CommandBars 编译期类型有两个大坑（见下节「COM 互操作两课」），必须全 `dynamic` IDispatch + 枚举查找 |
 | `HelixVS/source.extension.vsixmanifest` | 给 CodeLensOopProviderVsix 补的 `MefComponent` asset（不加 VS 不扫描 margin provider） |
 
 ## 数据流
@@ -39,9 +39,14 @@
 
 **VSCT 挂组到该菜单 = 无效（已废弃的方案）**：vsct 加 Group→`{F718CA06}:1`，编译过、装了、`ProvideMenuResource` 版本也升了、`devenv /updateconfiguration` 也跑了——菜单里就是没有。判伪手段：CommandBars facade 是**静态合并结构**（不跑 QueryStatus，工具窗口激活时 Code Window 里我们的项仍在），JSON Context 里没有 = 合并从未发生。Copilot/Git 项能出现在该菜单（机制未解析，VS2022 的 cto 全是压缩格式，无法静态读 placement；Copilot.Vsix 里无 ProfferCommands/CommandBars 调用），推断它们也是动态注入。
 
-**最终方案（已实现）**：包加载时 `EnsureJsonContextMenuBlameButton()` 用 `Command.AddControl` 把 cmdidToggleBlame 动态挂到 **"JSON Context" 命令条**（bar 名跨语言不变，中文 VS 也是这个名字），放在**菜单最底部**（已存在但位置不对会先 Delete 再加）；同时在 `OnToggleBlameBeforeQueryStatus` 里懒重试（JSON 包未起时 bar 不存在）。可见性/勾选仍走原 OleMenuCommand QueryStatus，注入控件自动继承。
+**最终方案（已实现）**：`EnsureJsonContextMenuBlameButton(trigger)` 用 `Command.AddControl` 把 cmdidToggleBlame 动态挂到 **"JSON Context" 命令条**（bar 名跨语言不变，中文 VS 也是这个名字）。**只加不删、位置不强制**（删了重加会搞坏未填充完的菜单条状态，1.5.0 踩过；底部强制曾把项顶到头部，用户拍板不强求）。三个触发点：包加载 / 自己 QueryStatus（只能覆盖 CODEWIN/Tools 菜单开启时机）/ `BlameMarginProvider.CreateMargin`（关键触发——**CodeWindow 自动加载 UIContext 在只开 JSON 系文件时可能不点燃，包根本没加载**；margin 是编辑器级 MEF，任何文本视图创建即触发；静态方法 + `Package.GetGlobalService(typeof(SDTE))`，包未加载也能跑）。可见性/勾选仍走原 OleMenuCommand QueryStatus，注入控件自动继承。每步执行写诊断日志 `C:\Windows\Temp\p4vs_blame_menu.log`（排查用，别删）。
 
-**CommandBars facade 事实**：① 控件枚举反映静态合并结构 + 动态注入项；② `Command.AddControl(bar, pos)` 可用且立即生效（pos=`Controls.Count+1` 放底部）；③ bar 索引器按内部名查（"JSON Context"/"Code Window"，不本地化）；④ 注入项的 Visible/Enabled 动态跟随命令 QueryStatus。
+**COM 互操作两课（反复踩坑全过程）**：
+1. **编译期 EnvDTE 类型不可用**：项目引的 EnvDTE 8.0 里 `_DTE.get_CommandBars()` 返回 `object`，VS2022 运行时返回强类型 CommandBars——签名不符 → **JIT 期 `MissingMethodException`，在方法体执行前抛出，方法内 try/catch 接不住** → 沿调用链炸穿 `InitializeAsync` → `SetSite failed for package`（ActivityLog 实锤，1.7~1.10 包加载失败弹窗就是它）。extern alias 也救不了（签名差异不是命名冲突）。
+2. **C# dynamic 不能调 COM 参数化默认属性**：`bars["JSON Context"]` 这种索引器语法 → RuntimeBinderException，被 catch 静默吞（1.4~1.6 注入从未真正成功，当时看到能用全是探针手动注入的残留控件）。
+3. **正解**：全 dynamic（晚期绑定按运行时真实签名走 IDispatch，天然免疫签名差异）+ **枚举 bars 找 "JSON Context"** 代替索引器语法；普通方法调用带参数（`dte.Commands.Item(guid,id)`、`cmd.AddControl(bar,pos)`）dynamic 支持。
+
+**CommandBars facade 事实**：① 控件枚举反映静态合并结构 + 动态注入项；② `Command.AddControl(bar, pos)` 可用且立即生效；③ bar 索引器按内部名查（"JSON Context"/"Code Window"，不本地化）；④ 注入项的 Visible/Enabled 动态跟随命令 QueryStatus；⑤ 动态注入的控件跨会话**会持久化**（1.4.0 会话里探针注入的项重启后还在）。
 
 ## p4api.net annotate 实测坑（2018.4/2025.1 dll）
 

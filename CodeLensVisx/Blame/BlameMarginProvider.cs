@@ -23,11 +23,10 @@ namespace CodeLensOopProviderVsix.Blame
             BlameMargin margin = new BlameMargin(wpfTextViewHost.TextView);
             wpfTextViewHost.TextView.Properties[typeof(BlameMargin)] = margin;
 
-            // A text view is being created - if it belongs to the WebTools JSON editor (.json/.uproject/
-            // .uplugin), its context menu is not IDM_VS_CTXT_CODEWIN, so make sure our command is injected
-            // there. This is the reliable trigger for the chicken-and-egg case (our own QueryStatus never
-            // runs from a menu that doesn't contain our command yet).
-            CodeLensOopProviderPackage.Instance?.EnsureJsonContextMenuBlameButton("margin");
+            // Any text view creation is a chance to inject into the "JSON Context" menu. Static + uses
+            // Package.GetGlobalService, so it works even when our package is not loaded yet (the CodeWindow
+            // autoload context may never fire if the user only opens JSON-editor files like .uproject).
+            CodeLensOopProviderPackage.EnsureJsonContextMenuBlameButton("margin");
 
             return margin;
         }

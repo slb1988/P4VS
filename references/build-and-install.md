@@ -65,9 +65,9 @@ cd /d/Github/P4VS
 
 - 同 Identity Id（`P4VsProviderx64.Perforce.6C2C3283-...`）且版本更高 = 升级：VS 删旧随机目录 `Extensions\<random1>\`、装到新随机目录 `<random2>\`，日志里大量 "Deleting file" 是正常升级过程
 - 已装的官方发布版是 `2025.1.282.7872`，所以本仓库必须 > 它
-- **每次修改源码必须递增一次小版本号**（当前 **2026.1.4.0**）。**同版本号覆盖安装是陷阱**（2026-08-31 实测）：VSIXInstaller 返回 exit 0 看似成功，但 `Extensions\` 下会残留新旧两份随机目录，VS 可能加载旧 DLL——功能不生效且无报错。修复流程：`VSIXInstaller /u:<IdentityId>` 卸载 → 手动删掉残留的含目标 dll 的旧目录 → 抬版本号重装。验证安装结果：检查 `Extensions\<新目录>\extension.vsixmanifest` 的 Version 和 dll 时间戳/内容字节（.NET dll 里字符串是 UTF-16LE，搜字节模式别用 grep 文本）。
+- **每次修改源码必须递增一次小版本号**（当前 **2026.1.11.0**）。**同版本号覆盖安装是陷阱**（2026-08-31 实测）：VSIXInstaller 返回 exit 0 看似成功，但 `Extensions\` 下会残留新旧两份随机目录，VS 可能加载旧 DLL——功能不生效且无报错。修复流程：`VSIXInstaller /u:<IdentityId>` 卸载 → 手动删掉残留的含目标 dll 的旧目录 → 抬版本号重装。验证安装结果：检查 `Extensions\<新目录>\extension.vsixmanifest` 的 Version 和 dll 时间戳/内容字节（.NET dll 里字符串是 UTF-16LE，搜字节模式别用 grep 文本）。
 
-## 版本号统一清单（2026-10-15 升到 2026.1.4.0；每次改源码递增）
+## 版本号统一清单（2026-10-15 升到 2026.1.11.0；每次改源码递增）
 
 **要改（展示层）：**
 - 4 个 `source.extension.vsixmanifest` 的 Identity Version：`HelixVS/`（总包，扩展管理器显示的就是它）、`P4VS/`、`P4VS_StartPage/`、`CodeLensVisx/`

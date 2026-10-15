@@ -1,7 +1,4 @@
-﻿extern alias EnvDteX;
-extern alias VsCmdBars;
-
-using EnvDTE;
+﻿using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.ComponentModelHost;
@@ -100,7 +97,6 @@ namespace CodeLensOopProviderVsix
                 commandService.AddCommand(blameCommand);
             }
 
-            Instance = this;
             EnsureJsonContextMenuBlameButton("load");
         }
 
@@ -113,15 +109,14 @@ namespace CodeLensOopProviderVsix
         // .uproject/.uplugin/.json all open in that editor (its factory claims "*" as fallback), and its
         // right-click menu is not IDM_VS_CTXT_CODEWIN, so without this the command is unreachable there.
         // Copilot/Git entries get in dynamically; we do the same: Command.AddControl onto the "JSON Context"
-        // command bar (bar name is locale-invariant). Purely add-if-missing: deleting/re-adding controls
-        // while the bar is still populating corrupts its state (2026-10-15, v2026.1.5.0 regression).
-        // Position is NOT enforced (user decision) - a load-time add can land at the top.
-        // Triggers: package load, our own QueryStatus, and BlameMarginProvider.CreateMargin (fires exactly
-        // when a JSON-ish editor opens, which is the chicken-and-egg case: our QueryStatus alone never
-        // runs from a menu that doesn't contain our command yet).
-        private bool jsonMenuEnsured;
-
-        internal static CodeLensOopProviderPackage Instance { get; private set; }
+        // command bar (bar name is locale-invariant). Purely add-if-missing, one shot (2026.1.4.0 semantics,
+        // i.e. the version confirmed working): never delete/re-add (corrupts the bar while it is still
+        // populating, v2026.1.5.0 regression), no position enforcement (user decision).
+        // Triggers: package load + our own QueryStatus + BlameMarginProvider.CreateMargin (static, uses
+        // Package.GetGlobalService - the package may NOT be loaded at that point, because the CodeWindow
+        // autoload UIContext does not necessarily fire when only JSON-editor files are open; margin
+        // creation is editor-level and always fires).
+        private static bool jsonMenuEnsured;
 
         private static void BlameMenuLog(string message)
         {
@@ -133,7 +128,7 @@ namespace CodeLensOopProviderVsix
             catch (Exception) { }
         }
 
-        internal void EnsureJsonContextMenuBlameButton(string trigger)
+        internal static void EnsureJsonContextMenuBlameButton(string trigger)
         {
             if (jsonMenuEnsured)
                 return;
@@ -143,43 +138,56 @@ namespace CodeLensOopProviderVsix
                 return; // retried on a later trigger
             }
 
-            EnvDteX::EnvDTE.DTE dte = GetService(typeof(SDTE)) as EnvDteX::EnvDTE.DTE;
-            if (dte == null)
-            {
-                BlameMenuLog(trigger + ": DTE null");
-                return;
-            }
-
             try
             {
-                VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBars bars =
-                    dte.CommandBars as VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBars;
+                // Fully late-bound via IDispatch (dynamic). Two hard-won lessons (2026-10-15):
+                // 1. Compile-time EnvDTE types are unusable: the project's EnvDTE 8.0 ref has
+                //    "_DTE.get_CommandBars() returns object" while VS2022's runtime EnvDTE returns the typed
+                //    CommandBars -> MissingMethodException at JIT time, thrown BEFORE the method body runs,
+                //    so it escapes any in-method try/catch and kills package load (v1.7-1.10 SetSite failed).
+                // 2. C# dynamic cannot invoke a parameterized default property on COM (bars["JSON Context"])
+                //    -> RuntimeBinderException, silently swallowed (v1.4-1.6 never actually injected).
+                // So: dynamic everywhere, and find the bar by enumerating instead of indexer syntax.
+                dynamic dte = Package.GetGlobalService(typeof(SDTE)); // works without our package loaded
+                if (dte == null)
+                {
+                    BlameMenuLog(trigger + ": DTE null");
+                    return;
+                }
+
+                dynamic bars = dte.CommandBars;
                 if (bars == null)
                 {
                     BlameMenuLog(trigger + ": CommandBars null");
                     return;
                 }
 
-                VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBar bar = bars["JSON Context"]; // throws if JSON editor package not ready yet; retried lazily
+                dynamic bar = null;
+                foreach (dynamic b in bars)
+                {
+                    string barName = null;
+                    try { barName = b.Name; } catch (Exception) { }
+                    if (barName == "JSON Context") { bar = b; break; }
+                }
                 if (bar == null)
                 {
-                    BlameMenuLog(trigger + ": bar null");
-                    return;
+                    BlameMenuLog(trigger + ": bar not found (JSON editor package not ready yet)");
+                    return; // retried lazily
                 }
 
-                foreach (VsCmdBars::Microsoft.VisualStudio.CommandBars.CommandBarControl ctl in bar.Controls)
+                foreach (dynamic ctl in bar.Controls)
                 {
                     string caption = null;
                     try { caption = ctl.Caption; } catch (Exception) { }
                     if (caption == "Toggle P4 Blame")
                     {
                         jsonMenuEnsured = true;
-                        BlameMenuLog(trigger + ": already present (idx>0), count=" + bar.Controls.Count);
+                        BlameMenuLog(trigger + ": already present, count=" + bar.Controls.Count);
                         return;
                     }
                 }
 
-                EnvDteX::EnvDTE.Command cmd = dte.Commands.Item("{" + GuidAndCmdID.PackageCmdSetGuidString + "}", (int)GuidAndCmdID.cmdidToggleBlame);
+                dynamic cmd = dte.Commands.Item("{" + GuidAndCmdID.PackageCmdSetGuidString + "}", (int)GuidAndCmdID.cmdidToggleBlame);
                 if (cmd == null)
                 {
                     BlameMenuLog(trigger + ": command not in table");
@@ -193,7 +201,7 @@ namespace CodeLensOopProviderVsix
             }
             catch (Exception ex)
             {
-                // JSON editor package not ready / menu store locked / VS shutting down - retried on next trigger
+                // menu store locked / VS shutting down - retried on next trigger
                 BlameMenuLog(trigger + ": EX " + ex.GetType().Name + " " + ex.Message);
             }
         }

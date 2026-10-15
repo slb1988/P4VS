@@ -47,7 +47,7 @@ cmd.exe //c "D:\Github\P4VS\install_p4vs.bat"  # 输出 VSIX_EXIT=0 即成功（
 
 <memory category="core-rules">
 - **AssemblyVersion 永远钉死在 2011.1.0.0 / 1.0.0.0**：822 处 .resx 强名称引用（`P4VS10, Version=2011.1.0.0` 形式）指向它，改了全部 WinForms 对话框资源解析炸。要展示版本只改 AssemblyFileVersion / AssemblyInformationalVersion / 四个 vsixmanifest。
-- **每次修改源码必须递增一次版本号（铁律，2026-08-31 立）**：vsix 安装是升级判定，Identity Version 必须高于已装版本（官方发布版是 2025.1.282.7872），否则 VSIXInstaller exit 1001 AlreadyInstalled。每次改代码就把 4 个 vsixmanifest + 5 个 AssemblyInfo 的展示版本号小版本 +1（当前 **2026.1.4.0**），清单见 references/build-and-install.md。**严禁同版本号覆盖安装**：2026-08-31 实测同版本 install 返回 exit 0 假象成功，Extensions 下残留新旧两份随机目录，VS 加载了旧 DLL，功能不生效还极难排查。
+- **每次修改源码必须递增一次版本号（铁律，2026-08-31 立）**：vsix 安装是升级判定，Identity Version 必须高于已装版本（官方发布版是 2025.1.282.7872），否则 VSIXInstaller exit 1001 AlreadyInstalled。每次改代码就把 4 个 vsixmanifest + 5 个 AssemblyInfo 的展示版本号小版本 +1（当前 **2026.1.11.0**），清单见 references/build-and-install.md。**严禁同版本号覆盖安装**：2026-08-31 实测同版本 install 返回 exit 0 假象成功，Extensions 下残留新旧两份随机目录，VS 加载了旧 DLL，功能不生效还极难排查。
 - 逻辑代码里的 `2011.1` 不是插件版本号（`Versions.cs` 的 P4 服务器版本判断、`CommandStatus.cs` 的 P4V 版本比较），全局替换前先确认语境。
 </memory>
 
@@ -66,7 +66,7 @@ cmd.exe //c "D:\Github\P4VS\install_p4vs.bat"  # 输出 VSIX_EXIT=0 即成功（
 
 - **命令路由两条路**：CodeLens 面板命令走 package 的 `IOleCommandTarget` 链（CommandWellOnly）；编辑器右键菜单走 `OleMenuCommandService` 注册（Blame 命令，cmdid 0x1015）
 - **编辑器右键放置**：Button 直挂 `IDM_VS_CTXT_CODEWIN` **不合并**；必须 Group 中转（Group→`IDM_VS_CTXT_CODEWIN`，Button→该 Group）。命令进命令表但菜单不出现时的标准修法
-- **JSON 系编辑器（.json/.uproject/.uplugin）右键不走 CODEWIN**：WebTools JSON 编辑器用 `"*"` 通配接管未注册扩展名，弹自己的菜单；VSCT 挂组到它的菜单（{F718CA06-...}:1）**合并不生效**（2026-10-15 实证，ProvideMenuResource 升版本/updateconfiguration 均无用），正解 = 包加载时 `Command.AddControl` 动态注入 "JSON Context" 命令条（`EnsureJsonContextMenuBlameButton`，细节见 references/p4-blame-feature.md）
+- **JSON 系编辑器（.json/.uproject/.uplugin）右键不走 CODEWIN**：WebTools JSON 编辑器用 `"*"` 通配接管未注册扩展名，弹自己的菜单；VSCT 挂组到它的菜单（{F718CA06-...}:1）**合并不生效**（2026-10-15 实证，ProvideMenuResource 升版本/updateconfiguration 均无用），正解 = 运行时 `Command.AddControl` 动态注入 "JSON Context" 命令条（`EnsureJsonContextMenuBlameButton`，静态+GetGlobalService+margin 钩子在包未加载时也能跑）。**DTE/CommandBars 别用编译期类型**（JIT 期 MissingMethodException 炸穿包加载）也别用 dynamic 索引器（静默失败），全 dynamic+枚举查找，细节见 references/p4-blame-feature.md
 - **包必须自动加载**否则右键项不出现：`[ProvideAutoLoad("8FE2DF1D-E0DA-4EBE-9D5C-415D40AD4874", BackgroundLoad)]`（CodeWindow UI context）
 - **同进程扩展拿 P4 连接**用 `P4VsProvider.CurrentScm`；跨进程（CodeLens 组件）才走 memory-mapped file `connection-info-{devenvPid}`（`HelixUtility`）
 - **MEF 编辑器扩展**（margin 等）必须在 `HelixVS/source.extension.vsixmanifest` 给宿主项目补 `MefComponent` asset，否则 VS 不扫描该 dll

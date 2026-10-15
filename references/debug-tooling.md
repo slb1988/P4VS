@@ -19,7 +19,8 @@ VS 实例在 ROT 注册 `!VisualStudio.DTE.17.0:<pid>`。枚举 ROT 拿 DTE 后�
 - `dte.ExecuteCommand("EditorContextMenus.CodeWindow.Helix.ToggleBlame")` — 直接执行命令（2022 里菜单贡献的命令带放置路径前缀），不抢焦点
 - `dte.Documents.Open(path)` / `dte.ActiveDocument` — 远程激活文档
 - `dte.ActiveDocument.Language` — 判文件实际编辑器（C/C++、Plain Text、JSON），比猜扩展名准
-- **CommandBars facade**（`dte.CommandBars`，VS2022 仍可用）：枚举 `bars["JSON Context"]` 等的 Controls 看菜单**静态合并结构**（不跑 QueryStatus，拿工具窗口激活做对照可区分「没合并」和「被隐藏」）；bar 名不本地化；`cmd.AddControl(bar, pos)` 可动态注入菜单项（pos=Controls.Count+1 放底部）——VSCT 合并不生效时的兜底手段
+- **CommandBars facade**（`dte.CommandBars`，VS2022 仍可用）：枚举 `bars["JSON Context"]` 等的 Controls 看菜单**静态合并结构**（不跑 QueryStatus，拿工具窗口激活做对照可区分「没合并」和「被隐藏」）；bar 名不本地化；`cmd.AddControl(bar, pos)` 可动态注入菜单项——VSCT 合并不生效时的兜底手段
+- **DTE COM 互操作两坑**（2026-10-15 实锤）：① 老 EnvDTE 引用与 VS2022 运行时签名不符（`get_CommandBars` 返回值类型变了）→ **JIT 期 MissingMethodException，方法体内 try/catch 接不住**，能炸穿包加载（SetSite failed）；② C# dynamic 调不了 COM 参数化默认属性（`bars["name"]`）→ RuntimeBinderException 静默失败。探针脚本没踩到是因为直接引了 VS2022 的 PublicAssemblies dll；扩展代码里安全做法 = 全 dynamic + 枚举代替索引器
 
 探针模板在本机 `%TEMP%\vsprobe*.cs/.exe`（csc 编译需引用 `EnvDTE.dll` + `Microsoft.VisualStudio.Interop.dll`，且两个 dll 要拷到 exe 旁——17.x 里 DTE 类型转发到后者，少了会 JIT 期崩）。
 
